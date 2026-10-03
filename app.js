@@ -92,7 +92,8 @@ function init() {
     btnRelative.addEventListener('click', () => setViewMode('relative'));
     baseCountrySelect.addEventListener('change', (e) => {
         state.baseCountry = e.target.value;
-        if (state.selectedCountries.size === 0) {
+        baseCountrySelect.classList.remove('highlight-pulse');
+        if (!state.selectedCountries.has(state.baseCountry)) {
             state.selectedCountries.add(state.baseCountry);
         }
         renderCountryList();
@@ -114,6 +115,9 @@ function init() {
 
     btnClearAll.addEventListener('click', () => {
         state.selectedCountries.clear();
+        state.baseCountry = '';
+        baseCountrySelect.value = '';
+        baseCountrySelect.classList.remove('highlight-pulse');
         renderCountryList();
         renderChart();
     });
@@ -131,6 +135,17 @@ function setViewMode(mode) {
         btnRelative.classList.add('active');
         btnAbsolute.classList.remove('active');
         baseCountrySelector.classList.remove('hidden');
+        
+        if (!state.baseCountry) {
+            const selectedArray = Array.from(state.selectedCountries);
+            if (selectedArray.length === 1) {
+                state.baseCountry = selectedArray[0];
+                baseCountrySelect.value = state.baseCountry;
+                baseCountrySelect.classList.remove('highlight-pulse');
+            } else if (selectedArray.length > 1) {
+                baseCountrySelect.classList.add('highlight-pulse');
+            }
+        }
     }
     renderCountryList();
     renderChart();
@@ -172,8 +187,27 @@ function renderCountryList() {
         checkbox.addEventListener('change', (e) => {
             if (e.target.checked) {
                 state.selectedCountries.add(country.id);
+                if (state.viewMode === 'relative' && state.selectedCountries.size === 1) {
+                    state.baseCountry = country.id;
+                    baseCountrySelect.value = state.baseCountry;
+                    baseCountrySelect.classList.remove('highlight-pulse');
+                }
             } else {
                 state.selectedCountries.delete(country.id);
+                if (state.baseCountry === country.id) {
+                    if (state.viewMode === 'relative' && state.selectedCountries.size === 1) {
+                        const remaining = Array.from(state.selectedCountries)[0];
+                        state.baseCountry = remaining;
+                        baseCountrySelect.value = state.baseCountry;
+                        baseCountrySelect.classList.remove('highlight-pulse');
+                    } else {
+                        state.baseCountry = '';
+                        baseCountrySelect.value = '';
+                        if (state.viewMode === 'relative' && state.selectedCountries.size > 0) {
+                            baseCountrySelect.classList.add('highlight-pulse');
+                        }
+                    }
+                }
             }
             
             // Clear search filter when a country is selected/deselected
