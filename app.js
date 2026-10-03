@@ -2,8 +2,8 @@ import { scales, countries } from './data.js';
 
 let state = {
     viewMode: 'absolute', // 'absolute' | 'relative'
-    baseCountry: 'US',
-    selectedCountries: new Set(['US', 'JP', 'DE']),
+    baseCountry: '',
+    selectedCountries: new Set(),
     searchQuery: ''
 };
 
@@ -70,12 +70,21 @@ svg.appendChild(gPoints);
 // Initialize UI
 function init() {
     // Populate base country select
-    Object.values(countries).sort((a, b) => a.name.localeCompare(b.name)).forEach(c => {
-        const option = document.createElement('option');
-        option.value = c.id;
-        option.textContent = c.name;
-        baseCountrySelect.appendChild(option);
-    });
+    const defaultOption = document.createElement('option');
+    defaultOption.value = '';
+    defaultOption.textContent = 'Select Base Country...';
+    defaultOption.disabled = true;
+    baseCountrySelect.appendChild(defaultOption);
+
+    Object.values(countries)
+        .filter(c => Object.values(c.data).filter(val => val !== null).length >= 5)
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .forEach(c => {
+            const option = document.createElement('option');
+            option.value = c.id;
+            option.textContent = c.name;
+            baseCountrySelect.appendChild(option);
+        });
     baseCountrySelect.value = state.baseCountry;
 
     // Event Listeners
@@ -83,10 +92,10 @@ function init() {
     btnRelative.addEventListener('click', () => setViewMode('relative'));
     baseCountrySelect.addEventListener('change', (e) => {
         state.baseCountry = e.target.value;
-        if (!state.selectedCountries.has(state.baseCountry)) {
+        if (state.selectedCountries.size === 0) {
             state.selectedCountries.add(state.baseCountry);
-            renderCountryList();
         }
+        renderCountryList();
         renderChart();
     });
     
@@ -96,16 +105,15 @@ function init() {
     });
 
     btnSelectAll.addEventListener('click', () => {
-        Object.keys(countries).forEach(id => state.selectedCountries.add(id));
+        Object.values(countries)
+            .filter(c => Object.values(c.data).filter(val => val !== null).length >= 5)
+            .forEach(c => state.selectedCountries.add(c.id));
         renderCountryList();
         renderChart();
     });
 
     btnClearAll.addEventListener('click', () => {
         state.selectedCountries.clear();
-        if (state.viewMode === 'relative') {
-            state.selectedCountries.add(state.baseCountry); // Keep base country
-        }
         renderCountryList();
         renderChart();
     });
@@ -123,10 +131,6 @@ function setViewMode(mode) {
         btnRelative.classList.add('active');
         btnAbsolute.classList.remove('active');
         baseCountrySelector.classList.remove('hidden');
-        if (!state.selectedCountries.has(state.baseCountry)) {
-             state.selectedCountries.add(state.baseCountry);
-             renderCountryList();
-        }
     }
     renderCountryList();
     renderChart();
@@ -143,6 +147,9 @@ function renderCountryList() {
     });
     
     sortedCountries.forEach(country => {
+        const dataPointsCount = Object.values(country.data).filter(val => val !== null).length;
+        if (dataPointsCount < 5) return;
+        
         if (state.searchQuery && !country.name.toLowerCase().includes(state.searchQuery)) {
             return;
         }
@@ -154,7 +161,6 @@ function renderCountryList() {
         colorIndicator.className = 'country-color-indicator';
         colorIndicator.style.backgroundColor = country.color;
 
-        const dataPointsCount = Object.values(country.data).filter(val => val !== null).length;
 
         const nameSpan = document.createElement('span');
         nameSpan.textContent = `${country.name} (${dataPointsCount}/${scales.length})`;
@@ -162,10 +168,6 @@ function renderCountryList() {
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
         checkbox.checked = state.selectedCountries.has(country.id);
-        
-        if (state.viewMode === 'relative' && country.id === state.baseCountry) {
-            checkbox.disabled = true; // Cannot unselect base country
-        }
 
         checkbox.addEventListener('change', (e) => {
             if (e.target.checked) {
@@ -211,12 +213,12 @@ function renderChart() {
     gDiffs.innerHTML = '';
 
     const isRelative = state.viewMode === 'relative';
-    const baseData = isRelative ? countries[state.baseCountry].data : null;
+    const baseData = (isRelative && state.baseCountry && countries[state.baseCountry]) ? countries[state.baseCountry].data : null;
 
     // 1. Render Scales
     scales.forEach((scale, i) => {
         const y = getY(i);
-        const offset = (isRelative && baseData[scale.id] !== null) ? baseData[scale.id] : 0;
+        const offset = (isRelative && baseData && baseData[scale.id] !== null) ? baseData[scale.id] : 0;
         
         const xStart = getX(-100, offset);
         const xEnd = getX(100, offset);
@@ -243,14 +245,14 @@ function renderChart() {
         const labelLeft = document.createElementNS(SVG_NS, "text");
         labelLeft.textContent = scale.left;
         labelLeft.setAttribute("x", xStart);
-        labelLeft.setAttribute("y", y - 10);
+        labelLeft.setAttribute("y", y + 25);
         labelLeft.setAttribute("class", "scale-label left");
         gScales.appendChild(labelLeft);
 
         const labelRight = document.createElementNS(SVG_NS, "text");
         labelRight.textContent = scale.right;
         labelRight.setAttribute("x", xEnd);
-        labelRight.setAttribute("y", y - 10);
+        labelRight.setAttribute("y", y + 25);
         labelRight.setAttribute("class", "scale-label right");
         gScales.appendChild(labelRight);
         
@@ -324,9 +326,9 @@ function renderChart() {
             
             const rect = document.createElementNS(SVG_NS, "rect");
             rect.setAttribute("x", xStart);
-            rect.setAttribute("y", y - 35); // 70px height centered around the line
+            rect.setAttribute("y", y - 45); // 70px height centered around the line
             rect.setAttribute("width", xEnd - xStart);
-            rect.setAttribute("height", 70);
+            rect.setAttribute("height", 90);
             
             rect.setAttribute("fill", getDiffColor(diff));
             rect.setAttribute("rx", 8); // rounded corners
@@ -346,7 +348,7 @@ function renderChart() {
             const val = country.data[scale.id];
             if (val !== null) {
                 const y = getY(i);
-                const offset = (isRelative && baseData[scale.id] !== null) ? baseData[scale.id] : 0;
+                const offset = (isRelative && baseData && baseData[scale.id] !== null) ? baseData[scale.id] : 0;
                 const x = getX(val, offset);
                 validPoints.push({ x, y, scaleIndex: i });
             }
