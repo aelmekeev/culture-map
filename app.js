@@ -4,7 +4,8 @@ let state = {
     viewMode: 'absolute', // 'absolute' | 'relative'
     baseCountry: '',
     selectedCountries: new Set(),
-    searchQuery: ''
+    searchQuery: '',
+    showLines: true
 };
 
 // Parse URL parameters
@@ -23,12 +24,18 @@ if (params.has('selected')) {
         state.selectedCountries = new Set();
     }
 }
+if (params.has('lines')) {
+    state.showLines = params.get('lines') !== 'false';
+}
 
 function updateUrlParams() {
     const p = new URLSearchParams();
     p.set('mode', state.viewMode);
     p.set('base', state.baseCountry);
     p.set('selected', Array.from(state.selectedCountries).join(','));
+    if (!state.showLines) {
+        p.set('lines', 'false');
+    }
     window.history.replaceState({}, '', `${window.location.pathname}?${p.toString()}`);
 }
 
@@ -41,6 +48,7 @@ const searchInput = document.getElementById('country-search');
 const countryListEl = document.getElementById('country-list');
 const btnSelectAll = document.getElementById('btn-select-all');
 const btnClearAll = document.getElementById('btn-clear-all');
+const toggleLinesCheckbox = document.getElementById('toggle-lines');
 const chartContainer = document.getElementById('chart-container');
 
 // SVG Setup
@@ -87,6 +95,8 @@ function init() {
         });
     baseCountrySelect.value = state.baseCountry;
 
+    toggleLinesCheckbox.checked = state.showLines;
+
     // Event Listeners
     btnAbsolute.addEventListener('click', () => setViewMode('absolute'));
     btnRelative.addEventListener('click', () => setViewMode('relative'));
@@ -103,6 +113,11 @@ function init() {
     searchInput.addEventListener('input', (e) => {
         state.searchQuery = e.target.value.toLowerCase();
         renderCountryList();
+    });
+
+    toggleLinesCheckbox.addEventListener('change', (e) => {
+        state.showLines = e.target.checked;
+        renderChart();
     });
 
     btnSelectAll.addEventListener('click', () => {
@@ -182,6 +197,7 @@ function renderCountryList() {
 
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
+        checkbox.className = 'custom-checkbox';
         checkbox.checked = state.selectedCountries.has(country.id);
 
         checkbox.addEventListener('change', (e) => {
@@ -373,8 +389,9 @@ function renderChart() {
     }
 
     // 3. Render Paths
-    selectedArray.forEach(id => {
-        const country = countries[id];
+    if (state.showLines) {
+        selectedArray.forEach(id => {
+            const country = countries[id];
         
         // Find valid points
         const validPoints = [];
@@ -412,6 +429,7 @@ function renderChart() {
             gPaths.appendChild(line);
         }
     });
+    }
 
     // 4. Render Points
     selectedArray.forEach(id => {
@@ -425,18 +443,31 @@ function renderChart() {
             const offset = (isRelative && baseData[scale.id] !== null) ? baseData[scale.id] : 0;
             const x = getX(val, offset);
             
+            const gPoint = document.createElementNS(SVG_NS, "g");
+            gPoint.setAttribute("class", "country-point-group");
+
             const circle = document.createElementNS(SVG_NS, "circle");
             circle.setAttribute("cx", x);
             circle.setAttribute("cy", y);
-            circle.setAttribute("r", isRelative && id === state.baseCountry ? 6 : 5);
+            const radius = isRelative && id === state.baseCountry ? 16 : 14;
+            circle.setAttribute("r", radius);
             circle.setAttribute("class", "country-point");
             circle.setAttribute("fill", country.color);
             
             const title = document.createElementNS(SVG_NS, "title");
             title.textContent = `${country.name}: ${country.data[scale.id]}`;
-            circle.appendChild(title);
+            gPoint.appendChild(title); // attach title to group for better hover area
+            
+            const text = document.createElementNS(SVG_NS, "text");
+            text.textContent = id;
+            text.setAttribute("x", x);
+            text.setAttribute("y", y);
+            text.setAttribute("class", "country-point-label");
 
-            gPoints.appendChild(circle);
+            gPoint.appendChild(circle);
+            gPoint.appendChild(text);
+            
+            gPoints.appendChild(gPoint);
         });
     });
     
