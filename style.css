@@ -1,13 +1,13 @@
 :root {
-    --bg-main: #0f172a;
-    --bg-sidebar: rgba(30, 41, 59, 0.7);
-    --border-color: rgba(255, 255, 255, 0.1);
-    --text-primary: #f8fafc;
-    --text-secondary: #94a3b8;
+    --bg-main: #f8fafc;
+    --bg-sidebar: rgba(241, 245, 249, 0.9);
+    --border-color: rgba(0, 0, 0, 0.1);
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
     --accent: #3b82f6;
     --accent-hover: #2563eb;
-    --glass-bg: rgba(15, 23, 42, 0.6);
-    --glass-border: rgba(255, 255, 255, 0.05);
+    --glass-bg: rgba(255, 255, 255, 0.7);
+    --glass-border: rgba(0, 0, 0, 0.05);
     
     font-family: 'Outfit', sans-serif;
 }
@@ -86,7 +86,7 @@ body {
 
 .toggle-group {
     display: flex;
-    background: rgba(0, 0, 0, 0.2);
+    background: rgba(0, 0, 0, 0.05);
     border-radius: 0.5rem;
     padding: 0.25rem;
     margin-bottom: 1rem;
@@ -109,7 +109,7 @@ body {
 .toggle-btn.active {
     background: var(--accent);
     color: white;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .hidden {
@@ -125,7 +125,7 @@ label {
 
 select, input[type="text"] {
     width: 100%;
-    background: rgba(0, 0, 0, 0.2);
+    background: rgba(0, 0, 0, 0.04);
     border: 1px solid var(--border-color);
     border-radius: 0.5rem;
     padding: 0.75rem;
@@ -158,15 +158,15 @@ select:focus, input[type="text"]:focus {
     width: 6px;
 }
 .country-list::-webkit-scrollbar-track {
-    background: rgba(0,0,0,0.1);
+    background: rgba(0,0,0,0.03);
     border-radius: 3px;
 }
 .country-list::-webkit-scrollbar-thumb {
-    background: rgba(255,255,255,0.2);
+    background: rgba(0,0,0,0.15);
     border-radius: 3px;
 }
 .country-list::-webkit-scrollbar-thumb:hover {
-    background: rgba(255,255,255,0.3);
+    background: rgba(0,0,0,0.25);
 }
 
 .country-item {
@@ -179,7 +179,7 @@ select:focus, input[type="text"]:focus {
 }
 
 .country-item:hover {
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(0, 0, 0, 0.04);
 }
 
 .country-color-indicator {
@@ -231,7 +231,7 @@ select:focus, input[type="text"]:focus {
 
 .action-btn {
     flex: 1;
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(0, 0, 0, 0.04);
     border: 1px solid var(--border-color);
     color: var(--text-primary);
     padding: 0.5rem;
@@ -243,7 +243,7 @@ select:focus, input[type="text"]:focus {
 }
 
 .action-btn:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(0, 0, 0, 0.08);
 }
 
 .main-content {
@@ -265,7 +265,7 @@ select:focus, input[type="text"]:focus {
     border-radius: 1rem;
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1);
     padding: 2rem;
     overflow: hidden;
 }
@@ -277,7 +277,7 @@ svg {
 }
 
 .scale-line {
-    stroke: rgba(255, 255, 255, 0.2);
+    stroke: rgba(0, 0, 0, 0.15);
     stroke-width: 2;
     stroke-linecap: round;
     transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
@@ -331,6 +331,5 @@ svg {
 }
 
 .diff-highlight {
-    fill: rgba(239, 68, 68, 0.2); /* Reddish highlight for big diffs */
     transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }

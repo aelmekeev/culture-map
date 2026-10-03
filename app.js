@@ -7,6 +7,31 @@ let state = {
     searchQuery: ''
 };
 
+// Parse URL parameters
+const params = new URLSearchParams(window.location.search);
+if (params.has('mode') && (params.get('mode') === 'absolute' || params.get('mode') === 'relative')) {
+    state.viewMode = params.get('mode');
+}
+if (params.has('base') && countries[params.get('base')]) {
+    state.baseCountry = params.get('base');
+}
+if (params.has('selected')) {
+    const selected = params.get('selected').split(',').filter(id => countries[id]);
+    if (selected.length > 0) {
+        state.selectedCountries = new Set(selected);
+    } else {
+        state.selectedCountries = new Set();
+    }
+}
+
+function updateUrlParams() {
+    const p = new URLSearchParams();
+    p.set('mode', state.viewMode);
+    p.set('base', state.baseCountry);
+    p.set('selected', Array.from(state.selectedCountries).join(','));
+    window.history.replaceState({}, '', `${window.location.pathname}?${p.toString()}`);
+}
+
 // DOM Elements
 const btnAbsolute = document.getElementById('btn-absolute');
 const btnRelative = document.getElementById('btn-relative');
@@ -85,8 +110,7 @@ function init() {
         renderChart();
     });
 
-    renderCountryList();
-    renderChart();
+    setViewMode(state.viewMode);
 }
 
 function setViewMode(mode) {
@@ -130,8 +154,10 @@ function renderCountryList() {
         colorIndicator.className = 'country-color-indicator';
         colorIndicator.style.backgroundColor = country.color;
 
+        const dataPointsCount = Object.values(country.data).filter(val => val !== null).length;
+
         const nameSpan = document.createElement('span');
-        nameSpan.textContent = country.name;
+        nameSpan.textContent = `${country.name} (${dataPointsCount}/${scales.length})`;
 
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
@@ -147,6 +173,11 @@ function renderCountryList() {
             } else {
                 state.selectedCountries.delete(country.id);
             }
+            
+            // Clear search filter when a country is selected/deselected
+            state.searchQuery = '';
+            searchInput.value = '';
+            
             renderCountryList();
             renderChart();
         });
@@ -231,7 +262,7 @@ function renderChart() {
             tick.setAttribute("y1", y - 5);
             tick.setAttribute("x2", tickX);
             tick.setAttribute("y2", v === 0 ? y + 10 : y + 5);
-            tick.setAttribute("stroke", v === 0 ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0.1)");
+            tick.setAttribute("stroke", v === 0 ? "rgba(0,0,0,0.3)" : "rgba(0,0,0,0.1)");
             tick.setAttribute("stroke-width", v === 0 ? "2" : "1");
             tick.setAttribute("class", "scale-tick");
             gScales.appendChild(tick);
@@ -239,48 +270,70 @@ function renderChart() {
     });
 
     // 2. Render Difference Highlights (only if exactly 2 countries in relative view)
-    const selectedArray = Array.from(state.selectedCountries);
-    if (isRelative && selectedArray.length === 2) {
-        const otherId = selectedArray.find(id => id !== state.baseCountry);
-        const otherData = countries[otherId].data;
-        
-        for (let i = 0; i < scales.length - 1; i++) {
-            const scale1 = scales[i].id;
-            const scale2 = scales[i+1].id;
-            
-            if (baseData[scale1] === null || baseData[scale2] === null || 
-                otherData[scale1] === null || otherData[scale2] === null) {
-                continue;
-            }
-            
-            const offset1 = baseData[scale1];
-            const offset2 = baseData[scale2];
-            
-            const xBase1 = getX(baseData[scale1], offset1);
-            const xBase2 = getX(baseData[scale2], offset2);
-            const xOther1 = getX(otherData[scale1], offset1);
-            const xOther2 = getX(otherData[scale2], offset2);
-            
-            const y1 = getY(i);
-            const y2 = getY(i+1);
-            
-            // Check diff
-            const diff1 = Math.abs(baseData[scale1] - otherData[scale1]);
-            const diff2 = Math.abs(baseData[scale2] - otherData[scale2]);
-            
-            if (diff1 > 30 || diff2 > 30) {
-                // Polygon connecting the space between lines
-                const poly = document.createElementNS(SVG_NS, "polygon");
-                poly.setAttribute("points", `${xBase1},${y1} ${xOther1},${y1} ${xOther2},${y2} ${xBase2},${y2}`);
-                
-                // Opacity based on diff
-                const avgDiff = (diff1 + diff2) / 2;
-                const opacity = Math.min(0.4, avgDiff / 200);
-                poly.setAttribute("fill", `rgba(239, 68, 68, ${opacity})`);
-                poly.setAttribute("class", "diff-highlight");
-                gDiffs.appendChild(poly);
-            }
+    // Configure colors and thresholds for diff highlighting here
+    const DIFF_CONFIG = [
+        { diff: 0, r: 34, g: 197, b: 94, opacity: 0.05 },   // Green (aligned)
+        { diff: 30, r: 234, g: 179, b: 8, opacity: 0.15 },  // Yellow (moderate diff)
+        { diff: 60, r: 239, g: 68, b: 68, opacity: 0.3 }    // Red (big diff)
+    ];
+
+    function getDiffColor(diff) {
+        if (diff <= DIFF_CONFIG[0].diff) {
+            const s = DIFF_CONFIG[0];
+            return `rgba(${s.r}, ${s.g}, ${s.b}, ${s.opacity})`;
         }
+        if (diff >= DIFF_CONFIG[2].diff) {
+            const s = DIFF_CONFIG[2];
+            return `rgba(${s.r}, ${s.g}, ${s.b}, ${s.opacity})`;
+        }
+        
+        const stageIdx = diff < DIFF_CONFIG[1].diff ? 0 : 1;
+        const s1 = DIFF_CONFIG[stageIdx];
+        const s2 = DIFF_CONFIG[stageIdx + 1];
+        
+        const factor = (diff - s1.diff) / (s2.diff - s1.diff);
+        const r = Math.round(s1.r + factor * (s2.r - s1.r));
+        const g = Math.round(s1.g + factor * (s2.g - s1.g));
+        const b = Math.round(s1.b + factor * (s2.b - s1.b));
+        const opacity = s1.opacity + factor * (s2.opacity - s1.opacity);
+        
+        return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+    }
+    
+    const selectedArray = Array.from(state.selectedCountries);
+    if (selectedArray.length === 2) {
+        const id1 = selectedArray[0];
+        const id2 = selectedArray[1];
+        const data1 = countries[id1].data;
+        const data2 = countries[id2].data;
+        
+        scales.forEach((scale, i) => {
+            const scaleId = scale.id;
+            
+            if (data1[scaleId] === null || data2[scaleId] === null) {
+                return;
+            }
+            
+            const diff = Math.abs(data1[scaleId] - data2[scaleId]);
+            
+            const y = getY(i);
+            const offset = (isRelative && baseData && baseData[scaleId] !== null) ? baseData[scaleId] : 0;
+            
+            const xStart = getX(-100, offset) - 30; // padding left
+            const xEnd = getX(100, offset) + 30;   // padding right
+            
+            const rect = document.createElementNS(SVG_NS, "rect");
+            rect.setAttribute("x", xStart);
+            rect.setAttribute("y", y - 35); // 70px height centered around the line
+            rect.setAttribute("width", xEnd - xStart);
+            rect.setAttribute("height", 70);
+            
+            rect.setAttribute("fill", getDiffColor(diff));
+            rect.setAttribute("rx", 8); // rounded corners
+            rect.setAttribute("class", "diff-highlight");
+            
+            gDiffs.appendChild(rect);
+        });
     }
 
     // 3. Render Paths
@@ -350,6 +403,8 @@ function renderChart() {
             gPoints.appendChild(circle);
         });
     });
+    
+    updateUrlParams();
 }
 
 // Start
