@@ -79,15 +79,17 @@ const btnSelectAll = document.getElementById('btn-select-all');
 const btnClearAll = document.getElementById('btn-clear-all');
 const toggleLinesCheckbox = document.getElementById('toggle-lines');
 const chartContainer = document.getElementById('chart-container');
+const sidebar = document.querySelector('.sidebar');
+const sidebarHeader = document.querySelector('.sidebar-header');
 
 // SVG Setup
 const SVG_NS = "http://www.w3.org/2000/svg";
-const width = 1000;
-const height = 800;
-const padding = { top: 60, right: 200, bottom: 60, left: 200 };
-const plotWidth = width - padding.left - padding.right;
-const plotHeight = height - padding.top - padding.bottom;
-const scaleSpacing = plotHeight / (scales.length - 1);
+let width = 1000;
+let height = 1100;
+const padding = { top: 60, right: 40, bottom: 60, left: 40 };
+let plotWidth = width - padding.left - padding.right;
+let plotHeight = height - padding.top - padding.bottom;
+let scaleSpacing = plotHeight / (scales.length - 1);
 
 let svg = document.createElementNS(SVG_NS, "svg");
 svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
@@ -139,6 +141,13 @@ function init() {
         renderChart();
     });
     
+    sidebarHeader.addEventListener('click', () => {
+        // Toggle mobile bottom sheet expansion
+        if (window.innerWidth <= 768) {
+            sidebar.classList.toggle('expanded');
+        }
+    });
+
     searchInput.addEventListener('input', (e) => {
         state.searchQuery = e.target.value.toLowerCase();
         updateColors(); renderCountryList();
@@ -167,6 +176,10 @@ function init() {
     });
 
     setViewMode(state.viewMode);
+
+    window.addEventListener('resize', () => {
+        renderChart();
+    });
 }
 
 function setViewMode(mode) {
@@ -293,6 +306,33 @@ function renderChart() {
 
     const isRelative = state.viewMode === 'relative';
     const baseData = (isRelative && state.baseCountry && countries[state.baseCountry]) ? countries[state.baseCountry].data : null;
+    const isMobile = window.innerWidth <= 768;
+
+    // Adjust height for mobile vs desktop to fix vertical cramming on desktop
+    if (isMobile) {
+        height = 1100;
+    } else {
+        height = 800; // tighter spacing on desktop
+    }
+
+    if (isRelative && isMobile) {
+        width = 1920; // Widen to allow scrolling on mobile
+    } else {
+        width = 1000; // 100% width on desktop, or absolute mobile
+    }
+    
+    plotHeight = height - padding.top - padding.bottom;
+    scaleSpacing = plotHeight / (scales.length - 1);
+    plotWidth = width - padding.left - padding.right;
+    
+    if (isRelative) {
+        svg.classList.add('mode-relative');
+        svg.classList.remove('mode-absolute');
+    } else {
+        svg.classList.add('mode-absolute');
+        svg.classList.remove('mode-relative');
+    }
+    svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
 
     // 1. Render Scales
     scales.forEach((scale, i) => {
@@ -501,6 +541,13 @@ function renderChart() {
     });
     
     updateUrlParams();
+
+    // Auto-scroll to center in relative mode for mobile
+    if (isRelative && window.innerWidth <= 768) {
+        setTimeout(() => {
+            chartContainer.scrollLeft = (chartContainer.scrollWidth - chartContainer.clientWidth) / 2;
+        }, 10);
+    }
 }
 
 // Start
