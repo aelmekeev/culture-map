@@ -1,4 +1,5 @@
 import { scales, countries } from './data.js';
+import { getDistinctFlagColors } from './country-colors-lib.js';
 
 let state = {
     viewMode: 'absolute', // 'absolute' | 'relative'
@@ -26,6 +27,34 @@ if (params.has('selected')) {
 }
 if (params.has('lines')) {
     state.showLines = params.get('lines') !== 'false';
+}
+
+function getFlagEmoji(countryCode) {
+    if (!countryCode || countryCode.length !== 2) return '';
+    const codePoints = countryCode
+        .toUpperCase()
+        .split('')
+        .map(char => 127397 + char.charCodeAt());
+    return String.fromCodePoint(...codePoints);
+}
+
+function updateColors() {
+    const selectedArray = Array.from(state.selectedCountries);
+    
+    // 1. Reset ALL countries to a neutral unselected color (light gray)
+    Object.values(countries).forEach(c => {
+        c.color = '#d1d5db'; // Unselected indicator
+    });
+
+    // 2. Dynamically assign high-contrast flag colors ONLY to active selections
+    if (selectedArray.length > 0 && typeof getDistinctFlagColors === 'function') {
+        const dynamicColors = getDistinctFlagColors(selectedArray);
+        selectedArray.forEach(id => {
+            if (dynamicColors[id]) {
+                countries[id].color = dynamicColors[id];
+            }
+        });
+    }
 }
 
 function updateUrlParams() {
@@ -90,7 +119,7 @@ function init() {
         .forEach(c => {
             const option = document.createElement('option');
             option.value = c.id;
-            option.textContent = c.name;
+            option.textContent = `${getFlagEmoji(c.id)} ${c.name}`;
             baseCountrySelect.appendChild(option);
         });
     baseCountrySelect.value = state.baseCountry;
@@ -106,13 +135,13 @@ function init() {
         if (!state.selectedCountries.has(state.baseCountry)) {
             state.selectedCountries.add(state.baseCountry);
         }
-        renderCountryList();
+        updateColors(); renderCountryList();
         renderChart();
     });
     
     searchInput.addEventListener('input', (e) => {
         state.searchQuery = e.target.value.toLowerCase();
-        renderCountryList();
+        updateColors(); renderCountryList();
     });
 
     toggleLinesCheckbox.addEventListener('change', (e) => {
@@ -124,7 +153,7 @@ function init() {
         Object.values(countries)
             .filter(c => Object.values(c.data).filter(val => val !== null).length >= 5)
             .forEach(c => state.selectedCountries.add(c.id));
-        renderCountryList();
+        updateColors(); renderCountryList();
         renderChart();
     });
 
@@ -133,7 +162,7 @@ function init() {
         state.baseCountry = '';
         baseCountrySelect.value = '';
         baseCountrySelect.classList.remove('highlight-pulse');
-        renderCountryList();
+        updateColors(); renderCountryList();
         renderChart();
     });
 
@@ -162,7 +191,7 @@ function setViewMode(mode) {
             }
         }
     }
-    renderCountryList();
+    updateColors(); renderCountryList();
     renderChart();
 }
 
@@ -193,7 +222,7 @@ function renderCountryList() {
 
 
         const nameSpan = document.createElement('span');
-        nameSpan.textContent = `${country.name} (${dataPointsCount}/${scales.length})`;
+        nameSpan.textContent = `${getFlagEmoji(country.id)} ${country.name} (${dataPointsCount}/${scales.length})`;
 
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
@@ -230,7 +259,7 @@ function renderCountryList() {
             state.searchQuery = '';
             searchInput.value = '';
             
-            renderCountryList();
+            updateColors(); renderCountryList();
             renderChart();
         });
 
