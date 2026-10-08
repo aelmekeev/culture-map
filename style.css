@@ -49,6 +49,12 @@ body {
     margin: 0;
 }
 
+.page-header p {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+}
+
 .content-wrapper {
     display: flex;
     flex: 1;
