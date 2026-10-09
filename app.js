@@ -536,6 +536,17 @@ function renderChart() {
             gPoint.appendChild(circle);
             gPoint.appendChild(text);
             
+            if (isRelative && id !== state.baseCountry) {
+                gPoint.style.cursor = 'pointer';
+                gPoint.addEventListener('click', () => {
+                    state.baseCountry = id;
+                    baseCountrySelect.value = id;
+                    updateColors();
+                    renderCountryList();
+                    renderChart();
+                });
+            }
+            
             gPoints.appendChild(gPoint);
         });
     });
